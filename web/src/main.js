@@ -1,5 +1,5 @@
-
 import "./style.css";
+import { initializeDashboardSimulation } from "./simulation/dashboardIntegration.js";
 
 const app = document.querySelector("#app");
 
@@ -307,4 +307,8 @@ resetButton.addEventListener("click", () => {
   commandInput.placeholder = "Enter rover command...";
 
   addLog("Rover reset to standby.", "warning-text");
+});
+
+initializeDashboardSimulation().catch(error => {
+    console.error("Dashboard integration failed:", error);
 });
