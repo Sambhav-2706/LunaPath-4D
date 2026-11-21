@@ -4,7 +4,8 @@
  * Browser Navigation Integration Example
  *
  * Connects browser terrain loading, route planning,
- * and grid-to-Three.js world coordinate conversion.
+ * hazard avoidance, and grid-to-Three.js world
+ * coordinate conversion.
  */
 
 import {
@@ -23,6 +24,7 @@ import {
 
 
 export async function createNavigationPayload() {
+
     // 1. Load terrain in the browser
     const terrain = await createBrowserNavigationTerrain();
 
@@ -30,12 +32,36 @@ export async function createNavigationPayload() {
     const start = { x: 5, y: 5 };
     const destination = { x: 250, y: 250 };
 
-    // 3. Define hazards in GRID space
-    const hazards = [];
+    // 3. Define deterministic hazards in GRID space
+    const hazards = [
+        { x: 80, y: 80 },
+        { x: 130, y: 130 },
+        { x: 180, y: 180 }
+    ];
 
-    // 4. Plan route using the existing path planner
+    // 4. Create a separate traversability map
+    //    so the original terrain remains unchanged
+    const terrainWithHazards = {
+        ...terrain,
+        traversability: terrain.traversability
+            ? new Uint8Array(terrain.traversability)
+            : new Uint8Array(terrain.width * terrain.height)
+                .fill(1)
+    };
+
+    // 5. Mark hazard cells as non-traversable
+    for (const hazard of hazards) {
+
+        const index =
+            hazard.y * terrainWithHazards.width +
+            hazard.x;
+
+        terrainWithHazards.traversability[index] = 0;
+    }
+
+    // 6. Plan a route that avoids hazards
     const result = planRoute(
-        terrain,
+        terrainWithHazards,
         start,
         destination,
         "BALANCED"
@@ -47,7 +73,7 @@ export async function createNavigationPayload() {
         );
     }
 
-    // 5. Convert grid coordinates into Three.js world coordinates
+    // 7. Convert grid coordinates into Three.js world coordinates
     const worldStart = gridToWorld(
         start,
         terrain.cellSize
@@ -68,8 +94,9 @@ export async function createNavigationPayload() {
         terrain.cellSize
     );
 
-    // 6. Create simulation integration payload
+    // 8. Create simulation integration payload
     const navigationPayload = {
+
         coordinateSystem: {
             grid: "XY",
             world: "XZ",
@@ -119,7 +146,9 @@ export async function createNavigationPayload() {
 
 // Example invocation from a browser application
 export async function runNavigationExample() {
+
     try {
+
         const payload = await createNavigationPayload();
 
         console.log("Grid route:", payload.path.grid);
@@ -132,8 +161,11 @@ export async function runNavigationExample() {
         console.log("World hazards:", payload.hazards.world);
 
         return payload;
+
     } catch (error) {
+
         console.error("Navigation integration error:", error);
+
         throw error;
     }
 }

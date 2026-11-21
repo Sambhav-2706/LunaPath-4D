@@ -7,8 +7,9 @@
  * - Checks only the rover's remaining route.
  * - Ignores hazards behind the rover.
  * - Replans when a future route hazard is detected.
- * - Replans when the rover has deviated from its route.
+ * - Replans when the rover genuinely deviates from its route.
  * - Supports continuous/fractional rover positions.
+ * - Matches rover position against path segments using distance.
  * - Converts continuous positions into grid coordinates for A*.
  * - Preserves the rover's exact position as the first new route node.
  * - Uses a terrain copy so the original terrain is preserved.
@@ -18,14 +19,156 @@
 import { planRoute } from "./PathPlanner.js";
 import { checkPathForHazards } from "./HazardDetection.js";
 
+
+/**
+ * Calculate the shortest distance from a point to a line segment.
+ *
+ * Returns:
+ * - distance: perpendicular/minimum distance
+ * - t: projection factor along the segment (0 to 1)
+ * - closestPoint: nearest point on the segment
+ */
+function distanceToSegment(point, start, end) {
+
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
+
+    const segmentLengthSquared =
+        dx * dx + dy * dy;
+
+    // Handle a segment with identical start and end points.
+    if (segmentLengthSquared === 0) {
+
+        const distance = Math.hypot(
+            point.x - start.x,
+            point.y - start.y
+        );
+
+        return {
+            distance,
+            t: 0,
+            closestPoint: { ...start }
+        };
+    }
+
+    // Projection of point onto the segment.
+    let t = (
+        (point.x - start.x) * dx +
+        (point.y - start.y) * dy
+    ) / segmentLengthSquared;
+
+    // Clamp projection to the segment boundaries.
+    t = Math.max(0, Math.min(1, t));
+
+    const closestPoint = {
+        x: start.x + t * dx,
+        y: start.y + t * dy
+    };
+
+    const distance = Math.hypot(
+        point.x - closestPoint.x,
+        point.y - closestPoint.y
+    );
+
+    return {
+        distance,
+        t,
+        closestPoint
+    };
+}
+
+
+/**
+ * Find the nearest remaining route segment to the rover.
+ *
+ * A rover is considered on-route when its distance to the
+ * nearest path segment is within the allowed tolerance.
+ */
+function findRoverOnPath(
+    currentPath,
+    currentPosition,
+    tolerance
+) {
+
+    if (currentPath.length === 0) {
+        return {
+            onPath: false,
+            segmentIndex: -1,
+            distance: Infinity,
+            t: 0,
+            closestPoint: null
+        };
+    }
+
+    // Handle a path containing only one point.
+    if (currentPath.length === 1) {
+
+        const node = currentPath[0];
+
+        const distance = Math.hypot(
+            currentPosition.x - node.x,
+            currentPosition.y - node.y
+        );
+
+        return {
+            onPath: distance <= tolerance,
+            segmentIndex: 0,
+            distance,
+            t: 0,
+            closestPoint: { ...node }
+        };
+    }
+
+    let nearest = {
+        distance: Infinity,
+        segmentIndex: -1,
+        t: 0,
+        closestPoint: null
+    };
+
+    // Check every path segment.
+    for (let i = 0; i < currentPath.length - 1; i++) {
+
+        const start = currentPath[i];
+        const end = currentPath[i + 1];
+
+        const result = distanceToSegment(
+            currentPosition,
+            start,
+            end
+        );
+
+        if (result.distance < nearest.distance) {
+
+            nearest = {
+                distance: result.distance,
+                segmentIndex: i,
+                t: result.t,
+                closestPoint: result.closestPoint
+            };
+        }
+    }
+
+    return {
+        onPath: nearest.distance <= tolerance,
+        segmentIndex: nearest.segmentIndex,
+        distance: nearest.distance,
+        t: nearest.t,
+        closestPoint: nearest.closestPoint
+    };
+}
+
+
 export function replanRoute({
     terrain,
     currentPath,
     currentPosition,
     goal,
     newHazards,
-    mode = "BALANCED"
+    mode = "BALANCED",
+    deviationTolerance = 0.75
 }) {
+
     // -----------------------------------------
     // 1. Validate inputs
     // -----------------------------------------
@@ -45,6 +188,15 @@ export function replanRoute({
     if (!currentPosition || !goal) {
         throw new Error(
             "Current position and goal are required."
+        );
+    }
+
+    if (
+        !Number.isFinite(deviationTolerance) ||
+        deviationTolerance < 0
+    ) {
+        throw new Error(
+            "Deviation tolerance must be a non-negative number."
         );
     }
 
@@ -95,7 +247,21 @@ export function replanRoute({
         );
     }
 
+    for (const node of currentPath) {
+
+        if (
+            !node ||
+            !Number.isFinite(node.x) ||
+            !Number.isFinite(node.y)
+        ) {
+            throw new Error(
+                "Current path contains an invalid node."
+            );
+        }
+    }
+
     for (const hazard of newHazards) {
+
         if (!hazard || !isValidGridPoint(hazard)) {
             throw new Error(
                 "Invalid hazard coordinate."
@@ -104,20 +270,30 @@ export function replanRoute({
     }
 
     // -----------------------------------------
-    // 2. Find rover position in current route
+    // 2. Match rover against remaining path
     // -----------------------------------------
 
-    const roverPathIndex = currentPath.findIndex(
-        node =>
-            node.x === currentPosition.x &&
-            node.y === currentPosition.y
+    const pathMatch = findRoverOnPath(
+        currentPath,
+        currentPosition,
+        deviationTolerance
     );
 
-    const roverOnCurrentPath = roverPathIndex !== -1;
+    const roverOnCurrentPath = pathMatch.onPath;
 
-    // Only validate the route the rover has yet to travel.
+    // If the rover is on a segment, retain only the
+    // remaining portion of that segment and future nodes.
+    //
+    // The rover's exact continuous position becomes the
+    // beginning of the remaining route.
+
     const remainingPath = roverOnCurrentPath
-        ? currentPath.slice(roverPathIndex)
+        ? [
+            { ...currentPosition },
+            ...currentPath.slice(
+                pathMatch.segmentIndex + 1
+            )
+        ]
         : [];
 
     // -----------------------------------------
@@ -137,6 +313,7 @@ export function replanRoute({
     const futureHazard = !safetyCheck.isSafe;
 
     if (!routeDeviation && !futureHazard) {
+
         return {
             success: true,
             replanned: false,
@@ -145,7 +322,13 @@ export function replanRoute({
                 "Remaining route is safe. No replanning required.",
             path: remainingPath,
             hazards: [],
-            route: null
+            route: null,
+            roverPathMatch: {
+                segmentIndex: pathMatch.segmentIndex,
+                distance: pathMatch.distance,
+                tolerance: deviationTolerance,
+                closestPoint: pathMatch.closestPoint
+            }
         };
     }
 
@@ -169,11 +352,14 @@ export function replanRoute({
     const blockedCells = new Set();
 
     for (const hazard of newHazards) {
+
         const index = hazard.y * width + hazard.x;
 
         updatedTraversability[index] = 0;
 
-        blockedCells.add(`${hazard.x},${hazard.y}`);
+        blockedCells.add(
+            `${hazard.x},${hazard.y}`
+        );
     }
 
     // -----------------------------------------
@@ -186,6 +372,7 @@ export function replanRoute({
     };
 
     if (!isValidGridPoint(gridStart)) {
+
         return {
             success: false,
             replanned: true,
@@ -215,6 +402,7 @@ export function replanRoute({
     // -----------------------------------------
 
     if (!newRoute.success) {
+
         return {
             success: false,
             replanned: true,
@@ -241,6 +429,7 @@ export function replanRoute({
         currentPosition.y === gridStart.y;
 
     if (!roverAtGridStart) {
+
         replannedPath.unshift({
             x: currentPosition.x,
             y: currentPosition.y
@@ -257,6 +446,7 @@ export function replanRoute({
     );
 
     if (!newPathSafety.isSafe) {
+
         return {
             success: false,
             replanned: true,
@@ -286,6 +476,12 @@ export function replanRoute({
         path: replannedPath,
         hazards: safetyCheck.intersections,
         route: newRoute,
-        blockedCells: Array.from(blockedCells)
+        blockedCells: Array.from(blockedCells),
+        roverPathMatch: {
+            segmentIndex: pathMatch.segmentIndex,
+            distance: pathMatch.distance,
+            tolerance: deviationTolerance,
+            closestPoint: pathMatch.closestPoint
+        }
     };
 }
