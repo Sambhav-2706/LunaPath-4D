@@ -28,9 +28,10 @@ export function loadElevationData(dataDir = DATA_DIR) {
         fs.readFileSync(metadataPath, "utf8")
     );
 
+    const binaryFileName = metadata.binary_file || metadata.files?.dem_binary || "dem.bin";
     const binaryPath = path.join(
         dataDir,
-        metadata.binary_file
+        binaryFileName
     );
 
     if (!fs.existsSync(binaryPath)) {

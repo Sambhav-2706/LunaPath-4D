@@ -5,6 +5,7 @@
     "metadata_version": "1.0.0",
     "source": "Procedural lunar synthesis (multi-octave fBm + power-law cratering)",
     "is_synthetic": true,
+    "binary_file": "dem.bin",
     "seed": 42,
     "grid_width": 256,
     "grid_height": 256,

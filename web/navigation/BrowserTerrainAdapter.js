@@ -42,8 +42,9 @@ export async function loadBrowserElevationData(
     // 2. Load DEM binary
     // -----------------------------------------
 
+    const binaryFileName = metadata.binary_file || metadata.files?.dem_binary || "dem.bin";
     const binaryUrl = new URL(
-        metadata.binary_file,
+        binaryFileName,
         metadataUrl
     );
 

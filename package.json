@@ -1,0 +1,12 @@
+{
+  "name": "lunapath-4d",
+  "version": "1.0.0",
+  "description": "LunaPath-4D Autonomous Lunar Rover Simulation System",
+  "scripts": {
+    "dev": "npm --prefix web run dev",
+    "start": "npm --prefix web run dev",
+    "build": "npm --prefix web install && npm --prefix web run build",
+    "preview": "npm --prefix web run preview",
+    "test": "node run.py test"
+  }
+}
