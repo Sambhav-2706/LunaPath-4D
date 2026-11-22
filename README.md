@@ -1,9 +1,5 @@
 # LunaPath-4D — Autonomous Lunar Rover Simulation System
 
-[![Live Demo on Vercel](https://img.shields.io/badge/Vercel-Live%20Simulation-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://lunapath-4d-iota.vercel.app)
-[![Simulation Status](https://img.shields.io/badge/Simulation-Operational-51dfa0?style=for-the-badge)](https://lunapath-4d-iota.vercel.app)
-[![Three.js](https://img.shields.io/badge/Three.js-WebGL%203D-black?style=for-the-badge&logo=three.js)](https://lunapath-4d-iota.vercel.app)
-[![VIT Bhopal](https://img.shields.io/badge/VIT%20Bhopal-Hackathon%202026-orange?style=for-the-badge)](https://lunapath-4d-iota.vercel.app)
 
 > 🚀 **Live Production Deployment:** **[https://lunapath-4d-iota.vercel.app](https://lunapath-4d-iota.vercel.app)**  
 
