@@ -1,0 +1,1079 @@
+{
+  "totalSnapshots": 5,
+  "totalEvents": 5,
+  "missionStatus": "COMPLETED",
+  "autonomousReplans": 1,
+  "hazardsHandled": 1,
+  "snapshots": [
+    {
+      "sequence": 1,
+      "label": "MISSION_CREATED",
+      "mission": {
+        "status": "READY",
+        "position": {
+          "x": 5,
+          "y": 5
+        },
+        "goal": {
+          "x": 25,
+          "y": 25
+        },
+        "speed": 5,
+        "distanceTravelled": 0,
+        "remainingDistance": 282.842712474619,
+        "estimatedMissionDistance": 282.842712474619,
+        "progress": 0,
+        "currentRouteNodes": 21,
+        "hazardCount": 0,
+        "hazards": []
+      },
+      "autonomous": {
+        "mode": "BALANCED",
+        "replanningCount": 0,
+        "hazardsHandled": 0,
+        "hazardHistory": [],
+        "lastDecision": null,
+        "mission": {
+          "status": "READY",
+          "position": {
+            "x": 5,
+            "y": 5
+          },
+          "goal": {
+            "x": 25,
+            "y": 25
+          },
+          "speed": 5,
+          "distanceTravelled": 0,
+          "remainingDistance": 282.842712474619,
+          "estimatedMissionDistance": 282.842712474619,
+          "progress": 0,
+          "currentRouteNodes": 21,
+          "hazardCount": 0,
+          "hazards": []
+        }
+      },
+      "events": [
+        {
+          "type": "MISSION_CREATED",
+          "timestamp": 0,
+          "position": {
+            "x": 5,
+            "y": 5
+          },
+          "details": {}
+        }
+      ]
+    },
+    {
+      "sequence": 2,
+      "label": "MISSION_STARTED",
+      "mission": {
+        "status": "RUNNING",
+        "position": {
+          "x": 5,
+          "y": 5
+        },
+        "goal": {
+          "x": 25,
+          "y": 25
+        },
+        "speed": 5,
+        "distanceTravelled": 0,
+        "remainingDistance": 282.842712474619,
+        "estimatedMissionDistance": 282.842712474619,
+        "progress": 0,
+        "currentRouteNodes": 21,
+        "hazardCount": 0,
+        "hazards": []
+      },
+      "autonomous": {
+        "mode": "BALANCED",
+        "replanningCount": 0,
+        "hazardsHandled": 0,
+        "hazardHistory": [],
+        "lastDecision": null,
+        "mission": {
+          "status": "RUNNING",
+          "position": {
+            "x": 5,
+            "y": 5
+          },
+          "goal": {
+            "x": 25,
+            "y": 25
+          },
+          "speed": 5,
+          "distanceTravelled": 0,
+          "remainingDistance": 282.842712474619,
+          "estimatedMissionDistance": 282.842712474619,
+          "progress": 0,
+          "currentRouteNodes": 21,
+          "hazardCount": 0,
+          "hazards": []
+        }
+      },
+      "events": [
+        {
+          "type": "MISSION_STARTED",
+          "timestamp": 0,
+          "position": {
+            "x": 5,
+            "y": 5
+          },
+          "details": {}
+        }
+      ]
+    },
+    {
+      "sequence": 3,
+      "label": "ROVER_MOVED",
+      "mission": {
+        "status": "RUNNING",
+        "position": {
+          "x": 7,
+          "y": 7
+        },
+        "goal": {
+          "x": 25,
+          "y": 25
+        },
+        "speed": 5,
+        "distanceTravelled": 28.284271247461902,
+        "remainingDistance": 254.55844122715712,
+        "estimatedMissionDistance": 282.842712474619,
+        "progress": 10,
+        "currentRouteNodes": 21,
+        "hazardCount": 0,
+        "hazards": []
+      },
+      "autonomous": {
+        "mode": "BALANCED",
+        "replanningCount": 0,
+        "hazardsHandled": 0,
+        "hazardHistory": [],
+        "lastDecision": null,
+        "mission": {
+          "status": "RUNNING",
+          "position": {
+            "x": 7,
+            "y": 7
+          },
+          "goal": {
+            "x": 25,
+            "y": 25
+          },
+          "speed": 5,
+          "distanceTravelled": 28.284271247461902,
+          "remainingDistance": 254.55844122715712,
+          "estimatedMissionDistance": 282.842712474619,
+          "progress": 10,
+          "currentRouteNodes": 21,
+          "hazardCount": 0,
+          "hazards": []
+        }
+      },
+      "events": []
+    },
+    {
+      "sequence": 4,
+      "label": "HAZARD_AVOIDED",
+      "mission": {
+        "status": "RUNNING",
+        "position": {
+          "x": 7,
+          "y": 7
+        },
+        "goal": {
+          "x": 25,
+          "y": 25
+        },
+        "speed": 5,
+        "distanceTravelled": 28.284271247461902,
+        "remainingDistance": 266.2741699796952,
+        "estimatedMissionDistance": 294.5584412271571,
+        "progress": 9.602261313451779,
+        "currentRouteNodes": 21,
+        "hazardCount": 1,
+        "hazards": [
+          {
+            "x": 15,
+            "y": 15,
+            "type": "NEW_OBSTACLE",
+            "severity": "HIGH"
+          }
+        ]
+      },
+      "autonomous": {
+        "mode": "BALANCED",
+        "replanningCount": 1,
+        "hazardsHandled": 1,
+        "hazardHistory": [
+          {
+            "x": 15,
+            "y": 15,
+            "detectedAt": {
+              "x": 7,
+              "y": 7
+            }
+          }
+        ],
+        "lastDecision": {
+          "success": true,
+          "status": "AUTONOMOUS_REPLAN_COMPLETED",
+          "hazard": {
+            "x": 15,
+            "y": 15,
+            "type": "NEW_OBSTACLE",
+            "severity": "HIGH"
+          },
+          "previousPosition": {
+            "x": 7,
+            "y": 7
+          },
+          "newPath": [
+            {
+              "x": 7,
+              "y": 7
+            },
+            {
+              "x": 8,
+              "y": 8
+            },
+            {
+              "x": 9,
+              "y": 9
+            },
+            {
+              "x": 10,
+              "y": 10
+            },
+            {
+              "x": 11,
+              "y": 11
+            },
+            {
+              "x": 12,
+              "y": 12
+            },
+            {
+              "x": 13,
+              "y": 13
+            },
+            {
+              "x": 14,
+              "y": 14
+            },
+            {
+              "x": 14,
+              "y": 15
+            },
+            {
+              "x": 14,
+              "y": 16
+            },
+            {
+              "x": 15,
+              "y": 16
+            },
+            {
+              "x": 16,
+              "y": 16
+            },
+            {
+              "x": 17,
+              "y": 17
+            },
+            {
+              "x": 18,
+              "y": 18
+            },
+            {
+              "x": 19,
+              "y": 19
+            },
+            {
+              "x": 20,
+              "y": 20
+            },
+            {
+              "x": 21,
+              "y": 21
+            },
+            {
+              "x": 22,
+              "y": 22
+            },
+            {
+              "x": 23,
+              "y": 23
+            },
+            {
+              "x": 24,
+              "y": 24
+            },
+            {
+              "x": 25,
+              "y": 25
+            }
+          ],
+          "replanningResult": {
+            "success": true,
+            "replanned": true,
+            "status": "ROUTE_UPDATED",
+            "message": "Hazard detected. A new safe route was calculated.",
+            "path": [
+              {
+                "x": 7,
+                "y": 7
+              },
+              {
+                "x": 8,
+                "y": 8
+              },
+              {
+                "x": 9,
+                "y": 9
+              },
+              {
+                "x": 10,
+                "y": 10
+              },
+              {
+                "x": 11,
+                "y": 11
+              },
+              {
+                "x": 12,
+                "y": 12
+              },
+              {
+                "x": 13,
+                "y": 13
+              },
+              {
+                "x": 14,
+                "y": 14
+              },
+              {
+                "x": 14,
+                "y": 15
+              },
+              {
+                "x": 14,
+                "y": 16
+              },
+              {
+                "x": 15,
+                "y": 16
+              },
+              {
+                "x": 16,
+                "y": 16
+              },
+              {
+                "x": 17,
+                "y": 17
+              },
+              {
+                "x": 18,
+                "y": 18
+              },
+              {
+                "x": 19,
+                "y": 19
+              },
+              {
+                "x": 20,
+                "y": 20
+              },
+              {
+                "x": 21,
+                "y": 21
+              },
+              {
+                "x": 22,
+                "y": 22
+              },
+              {
+                "x": 23,
+                "y": 23
+              },
+              {
+                "x": 24,
+                "y": 24
+              },
+              {
+                "x": 25,
+                "y": 25
+              }
+            ],
+            "hazards": [
+              {
+                "x": 15,
+                "y": 15,
+                "hazardType": "NEW_OBSTACLE"
+              }
+            ],
+            "route": {
+              "success": true,
+              "mode": "BALANCED",
+              "modeName": "Balanced",
+              "path": [
+                {
+                  "x": 7,
+                  "y": 7
+                },
+                {
+                  "x": 8,
+                  "y": 8
+                },
+                {
+                  "x": 9,
+                  "y": 9
+                },
+                {
+                  "x": 10,
+                  "y": 10
+                },
+                {
+                  "x": 11,
+                  "y": 11
+                },
+                {
+                  "x": 12,
+                  "y": 12
+                },
+                {
+                  "x": 13,
+                  "y": 13
+                },
+                {
+                  "x": 14,
+                  "y": 14
+                },
+                {
+                  "x": 14,
+                  "y": 15
+                },
+                {
+                  "x": 14,
+                  "y": 16
+                },
+                {
+                  "x": 15,
+                  "y": 16
+                },
+                {
+                  "x": 16,
+                  "y": 16
+                },
+                {
+                  "x": 17,
+                  "y": 17
+                },
+                {
+                  "x": 18,
+                  "y": 18
+                },
+                {
+                  "x": 19,
+                  "y": 19
+                },
+                {
+                  "x": 20,
+                  "y": 20
+                },
+                {
+                  "x": 21,
+                  "y": 21
+                },
+                {
+                  "x": 22,
+                  "y": 22
+                },
+                {
+                  "x": 23,
+                  "y": 23
+                },
+                {
+                  "x": 24,
+                  "y": 24
+                },
+                {
+                  "x": 25,
+                  "y": 25
+                }
+              ],
+              "totalDistanceMeters": 266.2741699796952,
+              "totalCost": 26.62741699796953,
+              "pathNodes": 21,
+              "message": "Route successfully planned."
+            },
+            "blockedCells": [
+              "15,15"
+            ]
+          },
+          "routeSwitchResult": {
+            "status": "RUNNING",
+            "position": {
+              "x": 7,
+              "y": 7
+            },
+            "goal": {
+              "x": 25,
+              "y": 25
+            },
+            "speed": 5,
+            "distanceTravelled": 28.284271247461902,
+            "remainingDistance": 266.2741699796952,
+            "estimatedMissionDistance": 294.5584412271571,
+            "progress": 9.602261313451779,
+            "currentRouteNodes": 21,
+            "hazardCount": 1,
+            "hazards": [
+              {
+                "x": 15,
+                "y": 15,
+                "type": "NEW_OBSTACLE",
+                "severity": "HIGH"
+              }
+            ]
+          },
+          "replanningCount": 1,
+          "message": "Hazard avoided. Mission continues on the updated route."
+        },
+        "mission": {
+          "status": "RUNNING",
+          "position": {
+            "x": 7,
+            "y": 7
+          },
+          "goal": {
+            "x": 25,
+            "y": 25
+          },
+          "speed": 5,
+          "distanceTravelled": 28.284271247461902,
+          "remainingDistance": 266.2741699796952,
+          "estimatedMissionDistance": 294.5584412271571,
+          "progress": 9.602261313451779,
+          "currentRouteNodes": 21,
+          "hazardCount": 1,
+          "hazards": [
+            {
+              "x": 15,
+              "y": 15,
+              "type": "NEW_OBSTACLE",
+              "severity": "HIGH"
+            }
+          ]
+        }
+      },
+      "events": [
+        {
+          "type": "REPLANNING_STARTED",
+          "timestamp": 28.284271247461902,
+          "position": {
+            "x": 7,
+            "y": 7
+          },
+          "details": {
+            "hazard": {
+              "x": 15,
+              "y": 15,
+              "type": "NEW_OBSTACLE",
+              "severity": "HIGH"
+            }
+          }
+        },
+        {
+          "type": "ROUTE_SWITCHED",
+          "timestamp": 28.284271247461902,
+          "position": {
+            "x": 7,
+            "y": 7
+          },
+          "details": {
+            "hazard": {
+              "x": 15,
+              "y": 15,
+              "type": "NEW_OBSTACLE",
+              "severity": "HIGH"
+            },
+            "newPathLength": 21
+          }
+        }
+      ]
+    },
+    {
+      "sequence": 5,
+      "label": "MISSION_COMPLETED",
+      "mission": {
+        "status": "COMPLETED",
+        "position": {
+          "x": 25,
+          "y": 25
+        },
+        "goal": {
+          "x": 25,
+          "y": 25
+        },
+        "speed": 5,
+        "distanceTravelled": 294.5584412271571,
+        "remainingDistance": 0,
+        "estimatedMissionDistance": 294.5584412271571,
+        "progress": 100,
+        "currentRouteNodes": 21,
+        "hazardCount": 1,
+        "hazards": [
+          {
+            "x": 15,
+            "y": 15,
+            "type": "NEW_OBSTACLE",
+            "severity": "HIGH"
+          }
+        ]
+      },
+      "autonomous": {
+        "mode": "BALANCED",
+        "replanningCount": 1,
+        "hazardsHandled": 1,
+        "hazardHistory": [
+          {
+            "x": 15,
+            "y": 15,
+            "detectedAt": {
+              "x": 7,
+              "y": 7
+            }
+          }
+        ],
+        "lastDecision": {
+          "success": true,
+          "status": "AUTONOMOUS_REPLAN_COMPLETED",
+          "hazard": {
+            "x": 15,
+            "y": 15,
+            "type": "NEW_OBSTACLE",
+            "severity": "HIGH"
+          },
+          "previousPosition": {
+            "x": 7,
+            "y": 7
+          },
+          "newPath": [
+            {
+              "x": 7,
+              "y": 7
+            },
+            {
+              "x": 8,
+              "y": 8
+            },
+            {
+              "x": 9,
+              "y": 9
+            },
+            {
+              "x": 10,
+              "y": 10
+            },
+            {
+              "x": 11,
+              "y": 11
+            },
+            {
+              "x": 12,
+              "y": 12
+            },
+            {
+              "x": 13,
+              "y": 13
+            },
+            {
+              "x": 14,
+              "y": 14
+            },
+            {
+              "x": 14,
+              "y": 15
+            },
+            {
+              "x": 14,
+              "y": 16
+            },
+            {
+              "x": 15,
+              "y": 16
+            },
+            {
+              "x": 16,
+              "y": 16
+            },
+            {
+              "x": 17,
+              "y": 17
+            },
+            {
+              "x": 18,
+              "y": 18
+            },
+            {
+              "x": 19,
+              "y": 19
+            },
+            {
+              "x": 20,
+              "y": 20
+            },
+            {
+              "x": 21,
+              "y": 21
+            },
+            {
+              "x": 22,
+              "y": 22
+            },
+            {
+              "x": 23,
+              "y": 23
+            },
+            {
+              "x": 24,
+              "y": 24
+            },
+            {
+              "x": 25,
+              "y": 25
+            }
+          ],
+          "replanningResult": {
+            "success": true,
+            "replanned": true,
+            "status": "ROUTE_UPDATED",
+            "message": "Hazard detected. A new safe route was calculated.",
+            "path": [
+              {
+                "x": 7,
+                "y": 7
+              },
+              {
+                "x": 8,
+                "y": 8
+              },
+              {
+                "x": 9,
+                "y": 9
+              },
+              {
+                "x": 10,
+                "y": 10
+              },
+              {
+                "x": 11,
+                "y": 11
+              },
+              {
+                "x": 12,
+                "y": 12
+              },
+              {
+                "x": 13,
+                "y": 13
+              },
+              {
+                "x": 14,
+                "y": 14
+              },
+              {
+                "x": 14,
+                "y": 15
+              },
+              {
+                "x": 14,
+                "y": 16
+              },
+              {
+                "x": 15,
+                "y": 16
+              },
+              {
+                "x": 16,
+                "y": 16
+              },
+              {
+                "x": 17,
+                "y": 17
+              },
+              {
+                "x": 18,
+                "y": 18
+              },
+              {
+                "x": 19,
+                "y": 19
+              },
+              {
+                "x": 20,
+                "y": 20
+              },
+              {
+                "x": 21,
+                "y": 21
+              },
+              {
+                "x": 22,
+                "y": 22
+              },
+              {
+                "x": 23,
+                "y": 23
+              },
+              {
+                "x": 24,
+                "y": 24
+              },
+              {
+                "x": 25,
+                "y": 25
+              }
+            ],
+            "hazards": [
+              {
+                "x": 15,
+                "y": 15,
+                "hazardType": "NEW_OBSTACLE"
+              }
+            ],
+            "route": {
+              "success": true,
+              "mode": "BALANCED",
+              "modeName": "Balanced",
+              "path": [
+                {
+                  "x": 7,
+                  "y": 7
+                },
+                {
+                  "x": 8,
+                  "y": 8
+                },
+                {
+                  "x": 9,
+                  "y": 9
+                },
+                {
+                  "x": 10,
+                  "y": 10
+                },
+                {
+                  "x": 11,
+                  "y": 11
+                },
+                {
+                  "x": 12,
+                  "y": 12
+                },
+                {
+                  "x": 13,
+                  "y": 13
+                },
+                {
+                  "x": 14,
+                  "y": 14
+                },
+                {
+                  "x": 14,
+                  "y": 15
+                },
+                {
+                  "x": 14,
+                  "y": 16
+                },
+                {
+                  "x": 15,
+                  "y": 16
+                },
+                {
+                  "x": 16,
+                  "y": 16
+                },
+                {
+                  "x": 17,
+                  "y": 17
+                },
+                {
+                  "x": 18,
+                  "y": 18
+                },
+                {
+                  "x": 19,
+                  "y": 19
+                },
+                {
+                  "x": 20,
+                  "y": 20
+                },
+                {
+                  "x": 21,
+                  "y": 21
+                },
+                {
+                  "x": 22,
+                  "y": 22
+                },
+                {
+                  "x": 23,
+                  "y": 23
+                },
+                {
+                  "x": 24,
+                  "y": 24
+                },
+                {
+                  "x": 25,
+                  "y": 25
+                }
+              ],
+              "totalDistanceMeters": 266.2741699796952,
+              "totalCost": 26.62741699796953,
+              "pathNodes": 21,
+              "message": "Route successfully planned."
+            },
+            "blockedCells": [
+              "15,15"
+            ]
+          },
+          "routeSwitchResult": {
+            "status": "RUNNING",
+            "position": {
+              "x": 7,
+              "y": 7
+            },
+            "goal": {
+              "x": 25,
+              "y": 25
+            },
+            "speed": 5,
+            "distanceTravelled": 28.284271247461902,
+            "remainingDistance": 266.2741699796952,
+            "estimatedMissionDistance": 294.5584412271571,
+            "progress": 9.602261313451779,
+            "currentRouteNodes": 21,
+            "hazardCount": 1,
+            "hazards": [
+              {
+                "x": 15,
+                "y": 15,
+                "type": "NEW_OBSTACLE",
+                "severity": "HIGH"
+              }
+            ]
+          },
+          "replanningCount": 1,
+          "message": "Hazard avoided. Mission continues on the updated route."
+        },
+        "mission": {
+          "status": "COMPLETED",
+          "position": {
+            "x": 25,
+            "y": 25
+          },
+          "goal": {
+            "x": 25,
+            "y": 25
+          },
+          "speed": 5,
+          "distanceTravelled": 294.5584412271571,
+          "remainingDistance": 0,
+          "estimatedMissionDistance": 294.5584412271571,
+          "progress": 100,
+          "currentRouteNodes": 21,
+          "hazardCount": 1,
+          "hazards": [
+            {
+              "x": 15,
+              "y": 15,
+              "type": "NEW_OBSTACLE",
+              "severity": "HIGH"
+            }
+          ]
+        }
+      },
+      "events": [
+        {
+          "type": "MISSION_COMPLETED",
+          "timestamp": 294.5584412271571,
+          "position": {
+            "x": 25,
+            "y": 25
+          },
+          "details": {}
+        }
+      ]
+    }
+  ],
+  "eventLog": [
+    {
+      "type": "MISSION_CREATED",
+      "timestamp": 0,
+      "position": {
+        "x": 5,
+        "y": 5
+      },
+      "details": {}
+    },
+    {
+      "type": "MISSION_STARTED",
+      "timestamp": 0,
+      "position": {
+        "x": 5,
+        "y": 5
+      },
+      "details": {}
+    },
+    {
+      "type": "REPLANNING_STARTED",
+      "timestamp": 28.284271247461902,
+      "position": {
+        "x": 7,
+        "y": 7
+      },
+      "details": {
+        "hazard": {
+          "x": 15,
+          "y": 15,
+          "type": "NEW_OBSTACLE",
+          "severity": "HIGH"
+        }
+      }
+    },
+    {
+      "type": "ROUTE_SWITCHED",
+      "timestamp": 28.284271247461902,
+      "position": {
+        "x": 7,
+        "y": 7
+      },
+      "details": {
+        "hazard": {
+          "x": 15,
+          "y": 15,
+          "type": "NEW_OBSTACLE",
+          "severity": "HIGH"
+        },
+        "newPathLength": 21
+      }
+    },
+    {
+      "type": "MISSION_COMPLETED",
+      "timestamp": 294.5584412271571,
+      "position": {
+        "x": 25,
+        "y": 25
+      },
+      "details": {}
+    }
+  ]
+}
