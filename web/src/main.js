@@ -8,6 +8,7 @@
  */
 
 import "./style.css";
+import * as THREE from "three";
 import { SimulationEngine } from "./SimulationEngine.js";
 import { TelemetryPanel } from "./TelemetryPanel.js";
 import { MissionControls } from "./MissionControls.js";
@@ -100,7 +101,7 @@ app.innerHTML = `
           <div class="benchmark-chip-row">
             <span class="rover-chip chip-main" title="Autonomous Terrain-Aware Rover">LP-R01 4D: 0 HITS</span>
             <span class="vs-label">VS</span>
-            <span class="rover-chip chip-ghost" id="ghost-status-chip" title="Naive Slope-Only Baseline Rover">LP-G00 GHOST: <span id="ghost-hazards-count">0</span> HITS</span>
+            <span class="rover-chip chip-ghost" id="ghost-status-chip" title="Naive Slope-Only Forward Scout Rover">LP-G00 SCOUT (+50m LEAD): <span id="ghost-hazards-count">0</span> HITS</span>
           </div>
         </div>
       </section>
@@ -360,6 +361,9 @@ app.innerHTML = `
           <button id="stop-btn" class="ctrl-btn btn-stop">
             <span>⏹</span> STOP
           </button>
+          <button id="spawn-hazard-btn" class="ctrl-btn btn-hazard" title="Spawn a dynamic obstacle directly on the route ahead of the vehicles">
+            <span>⚠️</span> SPAWN HAZARD
+          </button>
           <button id="reset-btn" class="ctrl-btn btn-reset">
             <span>↺</span> RESET
           </button>
@@ -514,6 +518,37 @@ engine.initialize()
           headingDeg: (engine.ghostHeadingAngle * 180) / Math.PI,
           pathNodes: engine.ghostPathNodes,
           currentNodeIndex: engine.ghostNodeIndex
+        }
+      });
+
+      // Interactive Click on Radar Minimap to drop dynamic hazard
+      minimapCanvas.addEventListener("click", (evt) => {
+        const rect = minimapCanvas.getBoundingClientRect();
+        const clickX = evt.clientX - rect.left;
+        const clickY = evt.clientY - rect.top;
+        const gx = Math.round((clickX / rect.width) * 255.0);
+        const gy = Math.round(255.0 - (clickY / rect.height) * 255.0);
+        engine.addHazardAt(gx, gy, 2);
+      });
+
+      // Shift + Click on 3D Simulation Canvas to drop dynamic hazard
+      const simCanvas = engine.renderer.domElement;
+      const raycaster = new THREE.Raycaster();
+      const mouse = new THREE.Vector2();
+
+      simCanvas.addEventListener("click", (evt) => {
+        if (!evt.shiftKey) return;
+        const rect = simCanvas.getBoundingClientRect();
+        mouse.x = ((evt.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((evt.clientY - rect.top) / rect.height) * 2 + 1;
+        raycaster.setFromCamera(mouse, engine.camera);
+        if (engine.terrain?.mesh) {
+          const hits = raycaster.intersectObject(engine.terrain.mesh);
+          if (hits.length > 0) {
+            const pt = hits[0].point;
+            const grid = engine.terrain.worldToGrid(pt.x, pt.z);
+            engine.addHazardAt(Math.round(grid.col), Math.round(grid.row), 2);
+          }
         }
       });
     }

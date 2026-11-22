@@ -157,6 +157,7 @@ export class TelemetryPanel {
       const totalHits = (snap.ghost.hazardsHit || 0) + (snap.ghost.severeSlopesHit || 0);
       this.elements.ghostHazardsCount.textContent = totalHits;
       if (this.elements.ghostStatusChip) {
+        this.elements.ghostStatusChip.innerHTML = `LP-G00 SCOUT (+50m LEAD): <span id="ghost-hazards-count">${totalHits}</span> HITS`;
         if (totalHits > 0) {
           this.elements.ghostStatusChip.className = "rover-chip chip-ghost hazard-hit";
         } else {

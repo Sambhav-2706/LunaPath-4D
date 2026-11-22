@@ -20,6 +20,9 @@ export class TerrainRenderer {
     this.material = null;
     this.hazardGroup = new THREE.Group();
     this.hazardGroup.name = "HazardsLayer";
+    this.dynamicHazardGroup = new THREE.Group();
+    this.dynamicHazardGroup.name = "DynamicHazardsLayer";
+    this.dynamicBeacons = [];
     this.colorAttributes = {};
     this.currentMode = "normal";
     this.isLoaded = false;
@@ -254,6 +257,8 @@ export class TerrainRenderer {
 
   /**
    * Build 3D visual markers for cataloged hazards & craters.
+   * Generates terrain-conforming perimeter ribbons draped along the 3D crater rim,
+   * completely eliminating half-submerged clipping through crater walls.
    */
   buildHazardMarkers() {
     this.hazardGroup.clear();
@@ -261,33 +266,66 @@ export class TerrainRenderer {
     const { hazards, cellSizeMeters } = this.terrainData;
     if (!hazards || hazards.length === 0) return;
 
-    // Glowing hazard ring geometry
-    const ringGeo = new THREE.RingGeometry(8, 14, 24);
-    ringGeo.rotateX(-Math.PI / 2);
-
-    const hazardMat = new THREE.MeshBasicMaterial({
-      color: 0xff3b3b,
-      side: THREE.DoubleSide,
-      transparent: true,
-      opacity: 0.65
-    });
-
     for (const h of hazards) {
       const gx = h.x_cell ?? h.x;
       const gy = h.y_cell ?? h.y;
       if (gx === undefined || gy === undefined) continue;
 
-      const worldPos = this.gridToWorld(gx, gy);
-      const elevation = this.getElevationAt(gx, gy);
-      const worldY = (elevation - this.terrainData.minElevation) * this.verticalExaggeration + 0.6;
-
       const radiusMeters = h.radius_meters || (h.radius ? h.radius * cellSizeMeters : 15);
-      const scale = Math.max(0.5, radiusMeters / 12);
+      const radiusCells = radiusMeters / cellSizeMeters;
+      const segments = 36;
 
-      const marker = new THREE.Mesh(ringGeo, hazardMat);
-      marker.scale.set(scale, scale, scale);
-      marker.position.set(worldPos.x, worldY, worldPos.z);
-      this.hazardGroup.add(marker);
+      // Sample perimeter in 3D: each vertex is placed at the exact local terrain elevation
+      const vertices = [];
+      const indices = [];
+
+      for (let s = 0; s <= segments; s++) {
+        const theta = (s / segments) * Math.PI * 2;
+        const cosT = Math.cos(theta);
+        const sinT = Math.sin(theta);
+
+        // Ribbon band around crater perimeter (inner & outer contour)
+        const rInCells = Math.max(0.3, radiusCells - 0.35);
+        const rOutCells = radiusCells + 0.35;
+
+        const colIn = gx + rInCells * cosT;
+        const rowIn = gy + rInCells * sinT;
+        const posIn = this.gridToWorld(colIn, rowIn);
+        const yIn = this.getWorldY(colIn, rowIn) + 0.55;
+
+        const colOut = gx + rOutCells * cosT;
+        const rowOut = gy + rOutCells * sinT;
+        const posOut = this.gridToWorld(colOut, rowOut);
+        const yOut = this.getWorldY(colOut, rowOut) + 0.55;
+
+        vertices.push(posIn.x, yIn, posIn.z);
+        vertices.push(posOut.x, yOut, posOut.z);
+
+        if (s < segments) {
+          const base = s * 2;
+          indices.push(base, base + 1, base + 2);
+          indices.push(base + 1, base + 3, base + 2);
+        }
+      }
+
+      const ribbonGeo = new THREE.BufferGeometry();
+      ribbonGeo.setAttribute("position", new THREE.Float32BufferAttribute(vertices, 3));
+      ribbonGeo.setIndex(indices);
+      ribbonGeo.computeVertexNormals();
+
+      const craterRimMat = new THREE.MeshBasicMaterial({
+        color: 0xff3838,
+        side: THREE.DoubleSide,
+        transparent: true,
+        opacity: 0.6,
+        depthWrite: false,
+        polygonOffset: true,
+        polygonOffsetFactor: -2,
+        polygonOffsetUnits: -2
+      });
+
+      const rimMesh = new THREE.Mesh(ribbonGeo, craterRimMat);
+      this.hazardGroup.add(rimMesh);
     }
   }
 
@@ -418,5 +456,170 @@ export class TerrainRenderer {
   getWorldY(col, row) {
     const elevation = this.getElevationAt(col, row);
     return (elevation - this.terrainData.minElevation) * this.verticalExaggeration;
+  }
+
+  /**
+   * Spawn a 3D visual cluster of aggressive, unmistakable glowing RED SPIKES.
+   * Features:
+   * - 18 sharp 3D cone spikes (6.5m to 12.0m high) firmly anchored to local terrain elevation
+   * - Glowing terrain-conforming crimson ground warning pad
+   * - Floating holographic danger diamond beacon hovering 14m above the cluster
+   * - High-intensity red danger point light
+   * @param {number} gx Grid X
+   * @param {number} gy Grid Y
+   * @param {number} radiusCells Obstacle radius in grid cells
+   */
+  addDynamicHazardMarker(gx, gy, radiusCells = 2) {
+    if (!this.terrainData) return null;
+    const cellSizeMeters = this.terrainData.cellSizeMeters || 10.0;
+    const worldPos = this.gridToWorld(gx, gy);
+    const elevation = this.getElevationAt(gx, gy);
+    const worldY = (elevation - this.terrainData.minElevation) * this.verticalExaggeration;
+    const radiusMeters = Math.max(14, radiusCells * cellSizeMeters);
+
+    const group = new THREE.Group();
+    group.position.set(worldPos.x, worldY, worldPos.z);
+
+    // 1. High-intensity glowing crimson ground warning pad draped on local terrain
+    const padSegments = 32;
+    const padVertices = [0, 0.45, 0]; // center point
+    const padIndices = [];
+    for (let s = 0; s <= padSegments; s++) {
+      const angle = (s / padSegments) * Math.PI * 2;
+      const rx = Math.cos(angle) * radiusMeters;
+      const rz = Math.sin(angle) * radiusMeters;
+      const localCol = gx + rx / cellSizeMeters;
+      const localRow = gy + rz / cellSizeMeters;
+      const localWorldY = (this.getElevationAt(localCol, localRow) - this.terrainData.minElevation) * this.verticalExaggeration;
+      padVertices.push(rx, (localWorldY - worldY) + 0.45, rz);
+      if (s > 0) {
+        padIndices.push(0, s, s + 1);
+      }
+    }
+    const padGeo = new THREE.BufferGeometry();
+    padGeo.setAttribute("position", new THREE.Float32BufferAttribute(padVertices, 3));
+    padGeo.setIndex(padIndices);
+    const ringMat = new THREE.MeshBasicMaterial({
+      color: 0xff0025,
+      transparent: true,
+      opacity: 0.85,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+      polygonOffset: true,
+      polygonOffsetFactor: -3,
+      polygonOffsetUnits: -3
+    });
+    const ringMesh = new THREE.Mesh(padGeo, ringMat);
+    group.add(ringMesh);
+
+    // 2. Bright red point light casting danger illumination on the lunar surface
+    const spikeLight = new THREE.PointLight(0xff0025, 8.0, radiusMeters * 3.5);
+    spikeLight.position.set(0, 5.0, 0);
+    group.add(spikeLight);
+
+    // 3. Cluster of menacing sharp 3D RED SPIKES (Tall sharp cones pointing straight UP)
+    const spikeMat = new THREE.MeshStandardMaterial({
+      color: 0xff0020,
+      emissive: 0xff0025,
+      emissiveIntensity: 1.6,
+      roughness: 0.15,
+      metalness: 0.85,
+      flatShading: true
+    });
+
+    const spikeCount = 18;
+    const spikeMeshes = [];
+
+    for (let i = 0; i < spikeCount; i++) {
+      // 6.5m to 12.0m tall sharp spikes!
+      const height = 6.5 + Math.random() * 5.5;
+      const baseRadius = 0.7 + Math.random() * 0.7;
+      // 5-sided sharp cone pointing straight up
+      const spikeGeo = new THREE.ConeGeometry(baseRadius, height, 5);
+      spikeGeo.translate(0, height / 2, 0); // Ground at y=0, tip points upwards
+
+      const spike = new THREE.Mesh(spikeGeo, spikeMat);
+
+      // Jagged cluster distribution across the hazard zone
+      const angle = (i / spikeCount) * Math.PI * 2 + (Math.random() - 0.5) * 0.6;
+      const dist = (0.15 + 0.75 * Math.random()) * (radiusMeters * 0.85);
+      const rx = Math.cos(angle) * dist;
+      const rz = Math.sin(angle) * dist;
+
+      // Sample local terrain elevation so spike base firmly sits on the terrain
+      const localCol = gx + rx / cellSizeMeters;
+      const localRow = gy + rz / cellSizeMeters;
+      const localWorldY = (this.getElevationAt(localCol, localRow) - this.terrainData.minElevation) * this.verticalExaggeration;
+      const relY = (localWorldY - worldY) + 0.1;
+
+      spike.position.set(rx, relY, rz);
+
+      // Organic tilt for sharp jagged aesthetic
+      spike.rotation.x = (Math.random() - 0.5) * 0.3;
+      spike.rotation.z = (Math.random() - 0.5) * 0.3;
+      spike.rotation.y = Math.random() * Math.PI * 2;
+
+      spike.castShadow = true;
+      group.add(spike);
+      spikeMeshes.push(spike);
+    }
+
+    // 4. Floating holographic danger diamond beacon hovering 14m above the cluster
+    const beaconGeo = new THREE.OctahedronGeometry(2.2, 0);
+    const beaconMat = new THREE.MeshStandardMaterial({
+      color: 0xff1133,
+      emissive: 0xff0020,
+      emissiveIntensity: 2.2,
+      roughness: 0.1,
+      metalness: 0.9,
+      wireframe: false
+    });
+    const beaconMesh = new THREE.Mesh(beaconGeo, beaconMat);
+    beaconMesh.position.set(0, 14.0, 0);
+    group.add(beaconMesh);
+
+    this.dynamicHazardGroup.add(group);
+    this.dynamicBeacons.push({
+      group,
+      ringMat,
+      spikeMat,
+      spikeLight,
+      spikeMeshes,
+      beaconMesh,
+      baseOpacity: 0.85,
+      createdAt: performance.now()
+    });
+
+    return group;
+  }
+
+  /**
+   * Clear all dynamic runtime hazard markers.
+   */
+  clearDynamicHazards() {
+    this.dynamicHazardGroup.clear();
+    this.dynamicBeacons = [];
+  }
+
+  /**
+   * Animate dynamic hazard beacon pulses and floating rotation.
+   */
+  updateDynamicHazards(timeSeconds) {
+    if (!this.dynamicBeacons || this.dynamicBeacons.length === 0) return;
+    for (let i = 0; i < this.dynamicBeacons.length; i++) {
+      const b = this.dynamicBeacons[i];
+      const pulse = 0.5 + 0.5 * Math.sin(timeSeconds * 5.0 + i);
+      b.ringMat.opacity = 0.5 + 0.45 * pulse;
+      if (b.spikeMat) {
+        b.spikeMat.emissiveIntensity = 1.0 + 0.8 * pulse;
+      }
+      if (b.spikeLight) {
+        b.spikeLight.intensity = 5.0 + 4.0 * pulse;
+      }
+      if (b.beaconMesh) {
+        b.beaconMesh.rotation.y = timeSeconds * 2.0;
+        b.beaconMesh.position.y = 14.0 + 1.2 * Math.sin(timeSeconds * 3.0 + i);
+      }
+    }
   }
 }
