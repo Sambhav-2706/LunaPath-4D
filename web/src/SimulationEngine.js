@@ -20,6 +20,7 @@ import { HealthMonitor } from "./HealthMonitor.js";
 import { MissionLogger } from "./MissionLogger.js";
 import { planRoute } from "../navigation/PathPlanner.js";
 import { findPath } from "../navigation/AStar.js";
+import { replanRoute } from "../navigation/DynamicReplanner.js";
 
 export class SimulationEngine {
   constructor(canvasContainer) {
@@ -82,6 +83,10 @@ export class SimulationEngine {
     this.totalPlannedDistance = 0;
     this.headingAngle = 0;
 
+    // Dynamic Replanning & Hazards
+    this.dynamicHazards = [];
+    this.dynamicHazardCells = [];
+
     // Path & Movement - Ghost Baseline Rover
     this.ghostPathNodes = [];
     this.ghostNodeIndex = 1;
@@ -92,6 +97,7 @@ export class SimulationEngine {
     this.ghostHeadingAngle = 0;
     this.ghostHazardsHit = 0;
     this.ghostSevereSlopesHit = 0;
+    this.ghostLeadSeconds = 3.5; // Lead time in seconds ahead of primary rover for forward scout preemption
 
     // Callbacks
     this.telemetryListeners = [];
@@ -114,6 +120,7 @@ export class SimulationEngine {
     await this.terrain.load();
     this.scene.add(this.terrain.mesh);
     this.scene.add(this.terrain.hazardGroup);
+    this.scene.add(this.terrain.dynamicHazardGroup);
 
     // 2. Add visualizer and rovers
     this.visualizer = new RouteVisualizer(this.terrain);
@@ -203,12 +210,16 @@ export class SimulationEngine {
       // Render 3D path ribbons and beacon pins
       this.visualizer.setRoute(this.pathNodes);
 
-      // Also compute Naive Ghost Baseline route for side-by-side benchmark
-      this.calculateGhostRoute(this.startCoord, this.destCoord);
+      // Ghost Rover acts as forward scout on the planned route (20-30m ahead)
+      this.ghostPathNodes = this.pathNodes.map(n => ({ ...n }));
+      this.ghostTotalDistance = this.totalPlannedDistance;
+      if (this.visualizer) {
+        this.visualizer.setGhostRoute(this.ghostPathNodes);
+      }
 
       this.state = "PLANNED";
       this.logger.log(`Route computed: ${result.pathNodes} waypoints, ${result.totalDistanceMeters.toFixed(1)}m.`, "success");
-      this.logger.log(`Ghost Baseline (Naive A*) computed: ${this.ghostPathNodes.length} waypoints.`, "info");
+      this.logger.log(`Ghost Scout LP-G00 synchronized on route (+25m forward reconnaissance horizon).`, "info");
 
       this.broadcastTelemetry();
       return { success: true, result };
@@ -292,24 +303,29 @@ export class SimulationEngine {
     if (this.pathNodes && this.pathNodes.length >= 2) {
       this.placeRoverAt(this.pathNodes[0].x, this.pathNodes[0].y);
       this.visualizer.setRoute(this.pathNodes);
+
+      // Deploy Ghost Rover exactly 50 meters (2 rover lengths) in front of our rover along the route
+      this.ghostPathNodes = this.pathNodes.map(n => ({ ...n }));
+      const ghostSample = this.getPositionAlongPath(this.ghostPathNodes, 50.0);
+      this.placeGhostRoverAt(ghostSample.x, ghostSample.y, ghostSample.headingAngle);
+      this.ghostNodeIndex = ghostSample.nodeIndex;
+      this.ghostDistanceTravelled = 50.0;
+      if (this.visualizer) {
+        this.visualizer.setGhostRoute(this.ghostPathNodes);
+        this.visualizer.updateGhostProgress(this.ghostNodeIndex, this.ghostWorldPos);
+      }
     } else {
       this.placeRoverAt(this.startCoord.x, this.startCoord.y);
-    }
-
-    // Also deploy Ghost Baseline Rover at start pad
-    if (this.ghostPathNodes && this.ghostPathNodes.length >= 2) {
-      this.placeGhostRoverAt(this.ghostPathNodes[0].x, this.ghostPathNodes[0].y);
-      this.visualizer.setGhostRoute(this.ghostPathNodes);
-    } else {
-      this.placeGhostRoverAt(this.startCoord.x, this.startCoord.y);
+      this.placeGhostRoverAt(this.startCoord.x, this.startCoord.y, 0);
+      this.ghostNodeIndex = 1;
+      this.ghostDistanceTravelled = 0;
     }
 
     this.currentNodeIndex = 1;
     this.distanceTravelled = 0;
-    this.ghostNodeIndex = 1;
-    this.ghostDistanceTravelled = 0;
     this.ghostHazardsHit = 0;
     this.ghostSevereSlopesHit = 0;
+    this.ghostLeadSeconds = 5.0;
     this.battery.reset();
     this.health.reset();
 
@@ -317,12 +333,53 @@ export class SimulationEngine {
     this.cameraController.focusOnRover(this.rover);
 
     this.state = "DEPLOYED";
-    this.logger.log("Rover LP-R01 and Ghost Baseline LP-G00 deployed at start waypoint.", "success");
+    this.logger.log("Rover LP-R01 and Ghost Scout LP-G00 deployed (Scout lead: 50m / 2 rover lengths ahead).", "success");
     this.broadcastTelemetry();
   }
 
-  placeGhostRoverAt(col, row) {
+  /**
+   * Sample continuous coordinates and heading along any path at a given distance in meters.
+   */
+  getPositionAlongPath(path, targetDistanceMeters) {
+    if (!path || path.length === 0) return { x: 20, y: 20, headingAngle: 0, nodeIndex: 1 };
+    if (path.length === 1) return { x: path[0].x, y: path[0].y, headingAngle: 0, nodeIndex: 1 };
+
+    const cellSize = this.terrain?.terrainData?.cellSizeMeters || 10.0;
+    let accumulated = 0;
+
+    for (let i = 1; i < path.length; i++) {
+      const prev = path[i - 1];
+      const cur = path[i];
+      const segDist = Math.hypot(cur.x - prev.x, cur.y - prev.y) * cellSize;
+
+      if (accumulated + segDist >= targetDistanceMeters || i === path.length - 1) {
+        const remaining = Math.max(0, targetDistanceMeters - accumulated);
+        const fraction = segDist > 1e-4 ? Math.min(1.0, remaining / segDist) : 0;
+        const x = prev.x + (cur.x - prev.x) * fraction;
+        const y = prev.y + (cur.y - prev.y) * fraction;
+
+        const worldPrev = this.terrain.gridToWorld(prev.x, prev.y);
+        const worldCur = this.terrain.gridToWorld(cur.x, cur.y);
+        const headingAngle = Math.atan2(
+          worldCur.x - worldPrev.x,
+          worldCur.z - worldPrev.z
+        );
+
+        return { x, y, headingAngle, nodeIndex: i };
+      }
+
+      accumulated += segDist;
+    }
+
+    const last = path[path.length - 1];
+    return { x: last.x, y: last.y, headingAngle: 0, nodeIndex: path.length - 1 };
+  }
+
+  placeGhostRoverAt(col, row, headingAngle = null) {
     this.ghostPosition = { x: col, y: row };
+    if (headingAngle !== null && Number.isFinite(headingAngle)) {
+      this.ghostHeadingAngle = headingAngle;
+    }
     const worldPos = this.terrain.gridToWorld(col, row);
     const worldY = this.terrain.getWorldY(col, row);
     const normal = this.terrain.getNormalAt(col, row);
@@ -385,24 +442,230 @@ export class SimulationEngine {
     this.state = "READY";
     this.distanceTravelled = 0;
     this.currentNodeIndex = 1;
-    this.ghostDistanceTravelled = 0;
+    this.ghostDistanceTravelled = 50.0;
     this.ghostNodeIndex = 1;
     this.ghostHazardsHit = 0;
     this.ghostSevereSlopesHit = 0;
+    this.ghostLeadSeconds = 5.0;
     this.battery.reset();
     this.health.reset();
+
+    // Reset dynamic hazards and restore clean navigation traversability
+    this.dynamicHazards = [];
+    this.dynamicHazardCells = [];
+    if (this.terrain && this.terrain.clearDynamicHazards) {
+      this.terrain.clearDynamicHazards();
+    }
+    this.buildNavigationTerrain();
 
     if (this.pathNodes.length > 0) {
       this.placeRoverAt(this.pathNodes[0].x, this.pathNodes[0].y);
       this.visualizer.setRoute(this.pathNodes);
-    }
-    if (this.ghostPathNodes.length > 0) {
-      this.placeGhostRoverAt(this.ghostPathNodes[0].x, this.ghostPathNodes[0].y);
-      this.visualizer.setGhostRoute(this.ghostPathNodes);
+
+      this.ghostPathNodes = this.pathNodes.map(n => ({ ...n }));
+      const ghostSample = this.getPositionAlongPath(this.ghostPathNodes, 50.0);
+      this.placeGhostRoverAt(ghostSample.x, ghostSample.y, ghostSample.headingAngle);
+      this.ghostDistanceTravelled = 50.0;
+      this.ghostNodeIndex = ghostSample.nodeIndex;
+      if (this.visualizer) {
+        this.visualizer.setGhostRoute(this.ghostPathNodes);
+        this.visualizer.updateGhostProgress(this.ghostNodeIndex, this.ghostWorldPos);
+      }
     }
 
     this.logger.log("Mission reset to initial standby coordinates.", "info");
     this.broadcastTelemetry();
+  }
+
+  /**
+   * Spawn a bed of sharp RED SPIKES directly ahead of our rover on the active route
+   * (160m ahead of LP-R01 and 110m ahead of the Ghost Scout, which is > 4 rover lengths ahead)
+   * so the Ghost Scout drives straight into the spikes first to preempt them for our rover.
+   */
+  spawnHazardAhead(distanceAheadMeters = 160, radiusCells = 2) {
+    if (!this.pathNodes || this.pathNodes.length < 2) {
+      this.logger.log("Cannot spawn obstacle: No active route computed.", "warning");
+      return { success: false, message: "No active route." };
+    }
+
+    // Target distance: 160 meters ahead of our rover on the route ribbon
+    let targetDist = this.distanceTravelled + distanceAheadMeters;
+    if (targetDist >= this.totalPlannedDistance - 15) {
+      const remaining = this.totalPlannedDistance - this.distanceTravelled;
+      const minAhead = (this.ghostDistanceTravelled - this.distanceTravelled) + 50.0;
+      if (remaining > minAhead + 15.0) {
+        targetDist = this.distanceTravelled + Math.max(minAhead, remaining * 0.7);
+      } else {
+        this.logger.log("Cannot spawn obstacle: Rover is within terminal arrival zone.", "warning");
+        return { success: false, message: "Near destination." };
+      }
+    }
+
+    const sample = this.getPositionAlongPath(this.pathNodes, targetDist);
+    return this.addHazardAt(Math.round(sample.x), Math.round(sample.y), radiusCells);
+  }
+
+  /**
+   * Inject a dynamic RED SPIKES hazard at specific grid coordinates and trigger a smooth
+   * LOCAL DETOUR that avoids the spikes without jumping to a different path across the map.
+   */
+  addHazardAt(gridX, gridY, radiusCells = 2) {
+    if (!this.navTerrain) {
+      this.logger.log("Cannot add hazard: Navigation terrain not ready.", "hazard");
+      return { success: false, message: "Terrain not ready." };
+    }
+
+    const { width, height } = this.navTerrain;
+    if (gridX < 0 || gridX >= width || gridY < 0 || gridY >= height) {
+      this.logger.log(`Hazard coordinates (${gridX}, ${gridY}) are outside terrain boundaries.`, "warning");
+      return { success: false, message: "Out of bounds." };
+    }
+
+    const cellSize = this.terrain?.terrainData?.cellSizeMeters || 10.0;
+    const distToRover = Math.hypot(gridX - this.currentPosition.x, gridY - this.currentPosition.y) * cellSize;
+    if (distToRover < 20.0) {
+      this.logger.log(`⚠️ SAFETY INTERLOCK: Cannot place hazard within 20m of rover.`, "warning");
+      return { success: false, message: "Too close to vehicle." };
+    }
+
+    // Block cells in navTerrain.traversability and maintain blocked cell set
+    const newlyBlockedCells = [];
+    const blockedCellSet = new Set();
+    for (let dy = -radiusCells; dy <= radiusCells; dy++) {
+      for (let dx = -radiusCells; dx <= radiusCells; dx++) {
+        if (dx * dx + dy * dy <= radiusCells * radiusCells) {
+          const gx = gridX + dx;
+          const gy = gridY + dy;
+          if (gx >= 0 && gx < width && gy >= 0 && gy < height) {
+            newlyBlockedCells.push({ x: gx, y: gy });
+            blockedCellSet.add(`${gx},${gy}`);
+            this.navTerrain.traversability[gy * width + gx] = 0; // Mark cell impassable
+          }
+        }
+      }
+    }
+
+    const hazardEntry = {
+      id: `SPIKES-${Date.now()}`,
+      x: gridX,
+      y: gridY,
+      radius: radiusCells,
+      radiusMeters: radiusCells * cellSize,
+      type: "RED_SPIKES"
+    };
+
+    this.dynamicHazards.push(hazardEntry);
+    this.dynamicHazardCells.push(...newlyBlockedCells);
+
+    // Render 3D RED SPIKES on terrain
+    if (this.terrain && this.terrain.addDynamicHazardMarker) {
+      this.terrain.addDynamicHazardMarker(gridX, gridY, radiusCells);
+    }
+
+    this.logger.log(`⚠️ RED SPIKES HAZARD DEPLOYED on route at (${gridX}, ${gridY})!`, "hazard");
+
+    // LOCAL SMOOTH DETOUR:
+    // Only curve around the red spikes locally and rejoin the exact same route.
+    // The rover will NOT jump to a completely different path across the map!
+    let hazardNodeIdx = -1;
+    let minDist = Infinity;
+    for (let i = 0; i < this.pathNodes.length; i++) {
+      const d = Math.hypot(this.pathNodes[i].x - gridX, this.pathNodes[i].y - gridY);
+      if (d < minDist) {
+        minDist = d;
+        hazardNodeIdx = i;
+      }
+    }
+
+    let detourSuccess = false;
+
+    if (hazardNodeIdx !== -1) {
+      // Reconnect node: 3-5 nodes past hazard, outside the blocked radius
+      let reconnectIdx = Math.min(this.pathNodes.length - 1, hazardNodeIdx + 4);
+      for (let i = hazardNodeIdx + 1; i < this.pathNodes.length; i++) {
+        const d = Math.hypot(this.pathNodes[i].x - gridX, this.pathNodes[i].y - gridY);
+        if (d > radiusCells + 1.2) {
+          reconnectIdx = i;
+          break;
+        }
+      }
+
+      // Bypass start node: 2-3 nodes before hazard, but at or ahead of rover's current node
+      let bypassStartIdx = Math.max(this.currentNodeIndex, hazardNodeIdx - 3);
+
+      const startPt = { x: Math.round(this.pathNodes[bypassStartIdx].x), y: Math.round(this.pathNodes[bypassStartIdx].y) };
+      const endPt = { x: Math.round(this.pathNodes[reconnectIdx].x), y: Math.round(this.pathNodes[reconnectIdx].y) };
+
+      const isWalkable = (x, y) => {
+        const key = `${x},${y}`;
+        if (blockedCellSet.has(key)) return false;
+        const idx = y * width + x;
+        return this.navTerrain.traversability[idx] !== 0;
+      };
+
+      const getTerrainCost = (x, y) => {
+        const idx = y * width + x;
+        const slopeVal = (this.navTerrain.slope[idx] || 0) * 1.5;
+        return 1.0 + slopeVal;
+      };
+
+      try {
+        const localDetour = findPath(startPt, endPt, width, height, isWalkable, getTerrainCost);
+        if (localDetour && localDetour.length >= 2) {
+          const newPath = [
+            ...this.pathNodes.slice(0, bypassStartIdx),
+            ...localDetour,
+            ...this.pathNodes.slice(reconnectIdx + 1)
+          ];
+          this.pathNodes = newPath;
+          if (this.visualizer) {
+            this.visualizer.setRoute(this.pathNodes);
+            this.visualizer.updateProgress(this.currentNodeIndex, this.currentWorldPos);
+          }
+
+          // Recalculate remaining distance
+          let remDist = 0;
+          for (let i = 1; i < this.pathNodes.length; i++) {
+            remDist += Math.hypot(this.pathNodes[i].x - this.pathNodes[i - 1].x, this.pathNodes[i].y - this.pathNodes[i - 1].y) * cellSize;
+          }
+          this.totalPlannedDistance = this.distanceTravelled + remDist;
+
+          detourSuccess = true;
+          this.logger.log(`🔀 LOCAL DETOUR SUCCESS: Autonomous detour cleanly circumvents RED SPIKES! Mission route preserved.`, "success");
+        }
+      } catch (err) {
+        console.warn("Local detour error:", err);
+      }
+    }
+
+    if (!detourSuccess) {
+      // Fallback if local window could not find path
+      try {
+        const replanResult = replanRoute({
+          terrain: this.navTerrain,
+          currentPath: this.pathNodes,
+          currentPosition: this.currentPosition,
+          goal: this.destCoord,
+          newHazards: this.dynamicHazardCells,
+          mode: this.navigationMode,
+          deviationTolerance: 2.0
+        });
+
+        if (replanResult.success && replanResult.replanned && replanResult.path && replanResult.path.length >= 2) {
+          this.pathNodes = replanResult.path;
+          this.currentNodeIndex = 1;
+          if (this.visualizer) {
+            this.visualizer.setRoute(this.pathNodes);
+          }
+          this.logger.log(`🔀 DYNAMIC REPLAN SUCCESS: Global bypass calculated around obstacle.`, "success");
+        }
+      } catch (err) {
+        console.warn("Replan fallback error:", err);
+      }
+    }
+
+    this.broadcastTelemetry();
+    return { success: true, hazard: hazardEntry };
   }
 
   setSpeedMultiplier(mult) {
@@ -480,6 +743,11 @@ export class SimulationEngine {
 
     // Update camera controls
     this.cameraController.update(dt);
+
+    // Animate dynamic hazard beacons
+    if (this.terrain && this.terrain.updateDynamicHazards) {
+      this.terrain.updateDynamicHazards(now / 1000.0);
+    }
 
     // Render 3D Scene
     this.renderer.render(this.scene, this.camera);
@@ -570,56 +838,27 @@ export class SimulationEngine {
   }
 
   /**
-   * Move Ghost Baseline Rover along its naive path nodes.
+   * Move Ghost Baseline Rover along the route exactly 20-25m in front of our rover
+   * as a forward scout, demonstrating naive collision with the RED SPIKES.
    */
   advanceGhostRover(deltaSeconds) {
-    const effectiveSpeed = this.nominalSpeedMps; // meters per second
-    let movementRemaining = effectiveSpeed * deltaSeconds;
+    if (!this.ghostPathNodes || this.ghostPathNodes.length < 2) return;
     const cellSize = this.terrain.terrainData.cellSizeMeters;
 
-    while (movementRemaining > 0 && this.ghostNodeIndex < this.ghostPathNodes.length) {
-      const targetNode = this.ghostPathNodes[this.ghostNodeIndex];
-      const dx = targetNode.x - this.ghostPosition.x;
-      const dy = targetNode.y - this.ghostPosition.y;
+    // Ghost Rover is strictly 50m (2 rover lengths) in front of our rover along the route
+    const targetGhostDist = Math.min(this.totalPlannedDistance, this.distanceTravelled + 50.0);
+    this.ghostDistanceTravelled = targetGhostDist;
 
-      const gridDist = Math.hypot(dx, dy);
-      const segmentDistMeters = gridDist * cellSize;
+    const sample = this.getPositionAlongPath(this.ghostPathNodes, targetGhostDist);
+    this.ghostPosition = { x: sample.x, y: sample.y };
+    this.ghostHeadingAngle = sample.headingAngle;
+    this.ghostNodeIndex = sample.nodeIndex;
 
-      if (segmentDistMeters < 1e-4) {
-        this.ghostPosition.x = targetNode.x;
-        this.ghostPosition.y = targetNode.y;
-        this.ghostNodeIndex++;
-        continue;
-      }
+    const worldPos = this.terrain.gridToWorld(sample.x, sample.y);
+    const worldY = this.terrain.getWorldY(sample.x, sample.y);
+    const normal = this.terrain.getNormalAt(sample.x, sample.y);
 
-      const worldTarget = this.terrain.gridToWorld(targetNode.x, targetNode.y);
-      const targetHeading = Math.atan2(
-        worldTarget.x - this.ghostWorldPos.x,
-        worldTarget.z - this.ghostWorldPos.z
-      );
-      this.ghostHeadingAngle = targetHeading;
-
-      if (movementRemaining >= segmentDistMeters) {
-        this.ghostPosition.x = targetNode.x;
-        this.ghostPosition.y = targetNode.y;
-        this.ghostDistanceTravelled += segmentDistMeters;
-        movementRemaining -= segmentDistMeters;
-        this.ghostNodeIndex++;
-      } else {
-        const fraction = movementRemaining / segmentDistMeters;
-        this.ghostPosition.x += dx * fraction;
-        this.ghostPosition.y += dy * fraction;
-        this.ghostDistanceTravelled += movementRemaining;
-        movementRemaining = 0;
-      }
-    }
-
-    // Update Ghost Rover 3D Pose
-    const worldPos = this.terrain.gridToWorld(this.ghostPosition.x, this.ghostPosition.y);
-    const worldY = this.terrain.getWorldY(this.ghostPosition.x, this.ghostPosition.y);
-    const normal = this.terrain.getNormalAt(this.ghostPosition.x, this.ghostPosition.y);
-
-    const stepDistance = effectiveSpeed * deltaSeconds;
+    const stepDistance = this.nominalSpeedMps * deltaSeconds;
     this.ghostWorldPos.set(worldPos.x, worldY, worldPos.z);
     this.ghostRover.update(worldPos.x, worldY, worldPos.z, this.ghostHeadingAngle, normal, stepDistance);
 
@@ -627,14 +866,20 @@ export class SimulationEngine {
       this.visualizer.updateGhostProgress(this.ghostNodeIndex, this.ghostWorldPos);
     }
 
-    // Monitor naive hazard penetration
-    const currentSlope = this.terrain.getSlopeAt(this.ghostPosition.x, this.ghostPosition.y);
-    const currentRough = this.terrain.getRoughnessAt(this.ghostPosition.x, this.ghostPosition.y);
-    if (currentSlope > 15.0) {
-      this.ghostSevereSlopesHit++;
-    }
-    if (currentRough > 1.6) {
-      this.ghostHazardsHit++;
+    // Check collision with Red Spikes hazards
+    for (const hazard of this.dynamicHazards) {
+      if (!hazard.struckByGhost) {
+        const dist = Math.hypot(hazard.x - this.ghostPosition.x, hazard.y - this.ghostPosition.y) * cellSize;
+        if (dist <= Math.max(12.0, (hazard.radius || 2) * cellSize * 0.75)) {
+          hazard.struckByGhost = true;
+          this.ghostHazardsHit++;
+          this.logger.log(
+            `💥 GHOST SCOUT LP-G00 STRUCK RED SPIKES HAZARD at (${hazard.x}, ${hazard.y})! Naive route traversed obstacle. Autonomous LP-R01 safe detour active.`,
+            "hazard"
+          );
+          this.broadcastTelemetry();
+        }
+      }
     }
   }
 
@@ -676,6 +921,8 @@ export class SimulationEngine {
       currentNodeIndex: this.currentNodeIndex,
       totalNodes: this.pathNodes.length,
       pathNodes: this.pathNodes,
+      dynamicHazards: this.dynamicHazards,
+      hazardsAvoided: this.dynamicHazards.length,
       battery: this.battery.getSnapshot(),
       health: this.health.getSnapshot(),
       ghost: {
@@ -684,6 +931,8 @@ export class SimulationEngine {
         worldPos: this.ghostWorldPos,
         distanceTravelled: this.ghostDistanceTravelled,
         totalDistance: this.ghostTotalDistance,
+        leadSeconds: Math.max(0, (this.ghostDistanceTravelled - this.distanceTravelled) / this.nominalSpeedMps),
+        leadDistanceMeters: Math.max(0, this.ghostDistanceTravelled - this.distanceTravelled),
         hazardsHit: this.ghostHazardsHit,
         severeSlopesHit: this.ghostSevereSlopesHit,
         headingDeg: Number(((this.ghostHeadingAngle * 180) / Math.PI + 360) % 360).toFixed(1),

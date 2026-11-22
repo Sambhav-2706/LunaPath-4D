@@ -123,6 +123,39 @@ export class Minimap {
       }
     }
 
+    // 2.5 Draw Dynamic Runtime Hazards (Flashing Red Warning Rings & !)
+    if (snap.dynamicHazards && snap.dynamicHazards.length > 0) {
+      const pulse = 0.5 + 0.5 * Math.sin(performance.now() * 0.006);
+      for (const dh of snap.dynamicHazards) {
+        const cx = toCanvasX(dh.x);
+        const cy = toCanvasY(dh.y);
+        const rPix = Math.max(7, ((dh.radius ?? 2) / 255.0) * w);
+
+        // Danger translucent fill
+        this.ctx.fillStyle = `rgba(255, 30, 30, ${0.28 + 0.32 * pulse})`;
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, rPix, 0, Math.PI * 2);
+        this.ctx.fill();
+
+        // Warning stroke ring
+        this.ctx.strokeStyle = `rgba(255, 80, 80, ${0.7 + 0.3 * pulse})`;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.arc(cx, cy, rPix, 0, Math.PI * 2);
+        this.ctx.stroke();
+
+        // Pulsing warning spike icon
+        this.ctx.fillStyle = "#ffffff";
+        this.ctx.font = "bold 8px monospace";
+        this.ctx.textAlign = "center";
+        this.ctx.textBaseline = "middle";
+        this.ctx.fillText("▲", cx, cy);
+        this.ctx.fillStyle = "#ff4444";
+        this.ctx.font = "bold 7px monospace";
+        this.ctx.fillText("SPIKES", cx, cy + rPix + 7);
+      }
+    }
+
     // 3. Draw Planned Route Line (Gold/Amber)
     if (snap.pathNodes && snap.pathNodes.length >= 2) {
       this.ctx.strokeStyle = "rgba(255, 182, 110, 0.75)";
@@ -256,6 +289,12 @@ export class Minimap {
       this.ctx.beginPath();
       this.ctx.arc(gx, gy, 2.8, 0, Math.PI * 2);
       this.ctx.fill();
+
+      // Ghost scout label
+      this.ctx.fillStyle = "rgba(0, 229, 255, 0.85)";
+      this.ctx.font = "bold 7px monospace";
+      this.ctx.textAlign = "center";
+      this.ctx.fillText("SCOUT", gx, gy - 8);
 
       // Ghost heading arrow
       if (Number.isFinite(Number(snap.ghost.headingDeg))) {

@@ -25,6 +25,7 @@ export class MissionControls {
     const btnResume = document.getElementById("resume-btn");
     const btnStop = document.getElementById("stop-btn");
     const btnReset = document.getElementById("reset-btn");
+    const btnSpawnHazard = document.getElementById("spawn-hazard-btn");
     const btnExport = document.getElementById("export-report-btn");
 
     if (btnPlan) {
@@ -61,6 +62,12 @@ export class MissionControls {
 
     if (btnReset) {
       btnReset.addEventListener("click", () => e.resetMission());
+    }
+
+    if (btnSpawnHazard) {
+      btnSpawnHazard.addEventListener("click", () => {
+        e.spawnHazardAhead(160, 2);
+      });
     }
 
     if (btnExport) {
@@ -167,7 +174,7 @@ export class MissionControls {
 
     switch (action) {
       case "help":
-        e.logger.log("COMMANDS: plan [x1 y1 x2 y2], deploy, start, pause, resume, stop, reset, speed [1|2|5|10], mode [FASTEST|SAFEST|BALANCED|ENERGY_EFFICIENT], export", "info");
+        e.logger.log("COMMANDS: plan [x1 y1 x2 y2], deploy, start, pause, resume, stop, reset, hazard [x y [r]], speed [1|2|5|10], mode [FASTEST|SAFEST|BALANCED|ENERGY_EFFICIENT], export", "info");
         break;
 
       case "plan":
@@ -204,6 +211,19 @@ export class MissionControls {
 
       case "reset":
         e.resetMission();
+        break;
+
+      case "hazard":
+      case "obstacle":
+      case "replan":
+        if (parts.length >= 3) {
+          const hx = parseInt(parts[1], 10);
+          const hy = parseInt(parts[2], 10);
+          const r = parts[3] ? parseInt(parts[3], 10) : 2;
+          e.addHazardAt(hx, hy, r);
+        } else {
+          e.spawnHazardAhead(160, 2);
+        }
         break;
 
       case "speed":

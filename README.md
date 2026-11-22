@@ -1,6 +1,5 @@
 # LunaPath-4D — Autonomous Lunar Rover Simulation System
 
-
 > 🚀 **Live Production Deployment:** **[https://lunapath-4d-iota.vercel.app](https://lunapath-4d-iota.vercel.app)**  
 
 ---
@@ -139,5 +138,3 @@ Open `http://localhost:5173` in your browser.
 | **Vercel Deployment** | Production build, static binary datasets, SPA routing | ✅ LIVE ON VERCEL |
 
 ---
-
-
