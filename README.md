@@ -64,13 +64,13 @@ LunaPath-4D/
 
 ## Key System Capabilities
 
-### 1. Lunar Terrain & Data Engineering (Member 1)
+### 1. Lunar Terrain & Data Engineering 
 - **High-Resolution DEM**: 256 × 256 grid, 10 m/cell, 2.56 km × 2.56 km extent at Lunar South Pole (-89° S, 0° E).
 - **Procedural Cratering**: Power-law Pareto distribution with parabolic depth profiles, rim uplifts, and Hermite ejecta blankets.
 - **Surface Metrics**: Horn's slope gradient (0°–47°), RMS moving-window roughness (0.13 m–12.5 m), and 4-tier traversability classification.
 - **Binary Array Serialization**: Zero-copy little-endian IEEE 754 float32 buffers for instant browser rendering.
 
-### 2. 3D Simulation & Visualization (Member 2)
+### 2. 3D Simulation & Visualization 
 - **Three.js Lunar Environment**: Photorealistic airless lunar sky, deep space starfield, and low-elevation directional polar sun casting realistic shadows.
 - **Pragyan-Scale 3D Rover**: Chassis with gold insulation foil, tilted solar deck, stereo NavCam mast, dish antenna, and 6 individually articulated wheels rotating proportionally to odometry.
 - **Dual-Rover Benchmark ("Ghost Car")**:
@@ -88,7 +88,7 @@ LunaPath-4D/
   - `ORBIT`, `TARGET FOCUS`, `TOP-DOWN`, and `HORIZON`.
 - **2D Tactical Radar Minimap HUD**: Live 210×210 px HUD showing topography, crater boundaries, real-time vehicle heading arrows, and route progression.
 
-### 3. Autonomous Navigation (Member 3)
+### 3. Autonomous Navigation 
 - **Terrain-Aware A\* Pathfinding**: 8-neighbor Octile distance heuristic with multi-criteria cost weighting.
 - **4 Navigation Modes**:
   - `BALANCED`: Optimal trade-off between traversal distance and mechanical effort.
@@ -97,7 +97,7 @@ LunaPath-4D/
   - `ENERGY_EFFICIENT`: Prefers flat, smooth terrain to minimize watt-hour consumption.
 - **Dynamic Replanning**: Autonomous hazard detection ahead of rover position triggering mid-mission route recalculation without restarting.
 
-### 4. Mission Control Dashboard (Member 4)
+### 4. Mission Control Dashboard 
 - **Real-Time Telemetry**: Live grid/world coordinates, elevation, slope, roughness, speed, heading, distance travelled, and progress.
 - **Physics Energy Model**: Watt-hour consumption accounting for base avionics, rolling friction, gravitational climbing potential ($m \cdot g \cdot v \cdot \sin\theta$), and roughness penalties.
 - **Subsystem Diagnostics**: Health monitoring for Mobility (rocker-bogie wear), Sensors (NavCam tilt), Power (battery/solar), and Communications (S-band RSSI).
@@ -145,6 +145,4 @@ Open `http://localhost:5173` in your browser.
 
 ---
 
-## License
 
-Developed for the VIT Bhopal Hackathon · LunaPath-4D Team · 2026.
